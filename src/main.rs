@@ -7,14 +7,10 @@ use clap::Parser;
 
 // CLI
 #[derive(Parser, Debug)]
-#[command(name = "Client CLI for Wholesum(subblock)")]
-#[command(author = "Wholesum team")]
-#[command(version = "1.0")]
-#[command(about = "Wholesum is a p2p prover network for ETH L1 block proving. \
-                   This program is a CLI for the subblock client node.",
-          long_about = None
-)]
 struct Cli {
+    #[arg(short)]
+    path: String,    
+
     #[arg(short)]
     size: u32,    
 }
@@ -27,10 +23,11 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // setup redis
-    let redis_client = redis::Client::open("redis://:redispassword@localhost:6379/0")?;    
+    let redis_client = redis::Client::open("redis://127.0.0.1:6379/")?;
+    // let redis_client = redis::Client::open("redis://:redispassword@localhost:6379/0")?;    
     let redis_con = redis_client.get_multiplexed_async_connection().await?;
 
-    // write_blocks(redis_con.clone(), cli.size).await?;
+    // write_blocks(redis_con.clone(), cli.path, cli.size).await?;
     read_blocks(redis_con.clone()).await?;
 
     Ok(())
@@ -39,9 +36,10 @@ async fn main() -> anyhow::Result<()> {
 #[allow(unused)]
 async fn write_blocks(
     mut redis_con: redis::aio::MultiplexedConnection,
-    size: u32
+    path: String,
+    size: u32,
 ) -> anyhow::Result<()> {
-    let base_blob_path = format!("../block-data/blocks/{}x", size);
+    let base_blob_path = format!("{}/{}x", path, size);
     let mut subblocks: BTreeMap<String, Vec<Vec<u8>>> = BTreeMap::new();
     let _: () = redis::cmd("DEL")
         .arg("blocks")
@@ -51,11 +49,12 @@ async fn write_blocks(
         let entry = entry?;
         let block_path = entry.path();
         // println!("Reading `{}`", block_path.display());        
-        let mut block_entries = block_path.read_dir()?;
-        // agg stdin
-        let _agg_stdin = block_entries.next().unwrap()?.path();
+        let mut block_entries = block_path.read_dir()?;        
+        let mut subblock_entry = block_entries.skip_while(|e|
+            !e.as_ref().unwrap().path().is_dir()
+        );
         // subblock stdins
-        let subblocks_path = block_entries.next().unwrap()?.path();
+        let subblocks_path = subblock_entry.next().unwrap()?.path();
         let num_subblocks = subblocks_path.read_dir()?.count();        
         let block_number = block_path.file_name().unwrap().to_str().unwrap().to_owned();
         let base_subblock_path = format!("{base_blob_path}/{block_number}/subblock_stdins");
