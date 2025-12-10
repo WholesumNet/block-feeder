@@ -23,12 +23,12 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // setup redis
-    let redis_client = redis::Client::open("redis://127.0.0.1:6379/")?;
-    // let redis_client = redis::Client::open("redis://:redispassword@localhost:6379/0")?;    
+    // let redis_client = redis::Client::open("redis://127.0.0.1:6379/")?;
+    let redis_client = redis::Client::open("redis://:redispassword@localhost:6379/0")?;    
     let redis_con = redis_client.get_multiplexed_async_connection().await?;
 
-    // write_blocks(redis_con.clone(), cli.path, cli.size).await?;
-    read_blocks(redis_con.clone()).await?;
+    write_blocks(redis_con.clone(), cli.path, cli.size).await?;
+    // read_blocks(redis_con.clone()).await?;
 
     Ok(())
 }
